@@ -7,7 +7,7 @@ import { compile } from '@ton-community/blueprint';
 
 // const buf2hex = (n: Buffer)=>{return[...new Uint8Array(n)].map(n=>n.toString(16).padStart(2,"0")).join("")}
 
-describe('JettonLockup', () => {
+describe('MultisigWallet', () => {
     let multisigWalletCode: Cell;
     let blockchain: Blockchain;
     let owner: OpenedContract<TreasuryContract>;
@@ -16,6 +16,8 @@ describe('JettonLockup', () => {
     let multisigWallet: OpenedContract<MultisigWallet>;
     let publicKey: Buffer, secretKey: Buffer;
     let anotherPublicKey: Buffer, anotherSecretKey: Buffer;
+
+    let queryId = parseInt((Math.floor((Date.now() / 1000) + 60 * 60 * 24 * 3) * 2 ** 32).toString());
 
     beforeAll(async () => {
         multisigWalletCode = await compile('MultisigWallet');
@@ -32,6 +34,7 @@ describe('JettonLockup', () => {
         anotherSecretKey = Buffer.from(keyPair.secretKey);
     });
 
+    queryId -= 10;
     it('should deploy & put test coins', async () => {
         multisigWallet = blockchain.openContract(
             MultisigWallet.createFromConfig({
@@ -48,12 +51,12 @@ describe('JettonLockup', () => {
             value: toNano('10'),
             bounce: false
         });
-        await blockchain.setVerbosityForAddress(multisigWallet.address, {
-            blockchainLogs: true,
-            vmLogs: 'vm_logs',
-        });
+        // await blockchain.setVerbosityForAddress(multisigWallet.address, {
+        //     blockchainLogs: true,
+        //     vmLogs: 'vm_logs',
+        // });
         const deployResult = await multisigWallet.sendDeploy(
-            owner.getSender(), publicKey, secretKey
+            publicKey, secretKey, queryId
         );
         expect(deployResult.transactions).toHaveTransaction({
             to: multisigWallet.address,
@@ -61,9 +64,10 @@ describe('JettonLockup', () => {
         });
     });
 
+    queryId += 1;
     it('try withdraw, 1 signature', async () => {
         const withdrawResult = await multisigWallet.sendExternal(
-            owner.getSender(), publicKey, secretKey,
+            publicKey, secretKey,
             beginCell()
                 .storeUint(0xa83505c8, 32)
                 .storeRef(
@@ -79,7 +83,7 @@ describe('JettonLockup', () => {
                         )
                         .endCell()
                 )
-                .endCell()
+                .endCell(), queryId
         );
         expect(withdrawResult.transactions).toHaveTransaction({
             from: multisigWallet.address,
@@ -88,9 +92,10 @@ describe('JettonLockup', () => {
         });
     });
 
+    queryId += 1;
     it('add owner', async () => {
         await multisigWallet.sendExternal(
-            owner.getSender(), publicKey, secretKey,
+            publicKey, secretKey,
             beginCell()
                 .storeUint(0xa83505c8, 32)
                 .storeRef(
@@ -102,14 +107,15 @@ describe('JettonLockup', () => {
                         .storeUint(1, 16)
                         .endCell()
                 )
-                .endCell()
+                .endCell(), queryId
         );
         expect(true).toBe(true);
     });
 
+    queryId += 1;
     it('edit threshold', async () => {
         await multisigWallet.sendExternal(
-            owner.getSender(), publicKey, secretKey,
+            publicKey, secretKey,
             beginCell()
                 .storeUint(0xa83505c8, 32)
                 .storeRef(
@@ -119,7 +125,7 @@ describe('JettonLockup', () => {
                         .storeCoins(2n)
                         .endCell()
                 )
-                .endCell()
+                .endCell(), queryId
         );
 
         let accountState = (await blockchain.getContract(multisigWallet.address)).accountState;
@@ -130,10 +136,10 @@ describe('JettonLockup', () => {
         expect(storedThreshold).toBe(2n);
     });
 
-    const queryId = Math.floor((Date.now() / 1000) + 60 * 60 * 24 * 3) * 2 ** 32;
+    queryId += 1;
     it('try withdraw, 2 signatures [add proposal]', async () => {
         await multisigWallet.sendExternal(
-            owner.getSender(), publicKey, secretKey,
+            publicKey, secretKey,
             beginCell()
                 .storeUint(0xa83505c8, 32)
                 .storeRef(
@@ -149,8 +155,7 @@ describe('JettonLockup', () => {
                         )
                         .endCell()
                 )
-                .endCell(),
-            queryId
+                .endCell(), queryId
         );
 
         let account = (await blockchain.getContract(multisigWallet.address));
@@ -159,7 +164,7 @@ describe('JettonLockup', () => {
 
     it('try withdraw, 2 signatures [approve proposal]', async () => {
         const withdrawResult = await multisigWallet.sendExternal(
-            another.getSender(), anotherPublicKey, anotherSecretKey,
+            anotherPublicKey, anotherSecretKey,
             beginCell()
                 .storeUint(0xa83505c8, 32)
                 .endCell(), queryId

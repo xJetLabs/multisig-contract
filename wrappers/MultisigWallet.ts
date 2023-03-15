@@ -37,6 +37,7 @@ export function multisigWalletConfigToCell(config: MultisigWalletConfig): Cell {
 
     return beginCell()
         .storeUint(0, 64)
+        .storeUint(0, 64)
         .storeCoins(config.threshold)
         .storeDict(owners)
         .storeUint(0, 1)
@@ -56,14 +57,12 @@ export class MultisigWallet implements Contract {
         return new MultisigWallet(contractAddress(workchain, init), init);
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, publicKey: Buffer, secretKey: Buffer) {
-        return await this.sendExternal(provider, via, publicKey, secretKey, beginCell().storeUint(0, 32).endCell());
+    async sendDeploy(provider: ContractProvider, publicKey: Buffer, secretKey: Buffer, queryId: number) {
+        return await this.sendExternal(provider, publicKey, secretKey, beginCell().storeUint(0, 32).endCell(), queryId);
     }
 
-    async sendExternal(provider: ContractProvider, via: Sender, publicKey: Buffer, secretKey: Buffer, message: Cell, queryId: number = 0) {
-        if (queryId === 0)
-            queryId = Math.floor((Date.now() / 1000) + 60 * 60 * 24 * 3) * 2 ** 32;
-            
+    async sendExternal(provider: ContractProvider, publicKey: Buffer, secretKey: Buffer, message: Cell, queryId: number) {
+        console.log(queryId);
         message = beginCell()
             .storeBuffer(publicKey)
             .storeUint(queryId, 64)
