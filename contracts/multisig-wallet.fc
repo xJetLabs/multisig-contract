@@ -116,12 +116,7 @@ global cell storage::pending_queries;
             }
         } until (~ found?);
 
-        storage::pending_queries~udict_set_builder(
-            64, query_id, begin_cell()
-                .store_int(true, 1) ;; executed
-                .store_ref(_messages)
-                .store_dict(signatures)
-        );
+        storage::pending_queries~udict_delete?(64, query_id);
     }
 }
 
@@ -136,11 +131,8 @@ global cell storage::pending_queries;
 
     load_data();
     (_, int found?) = storage::pending_queries.udict_get?(64, query_id);
-    ~dump(query_id);
-    ~dump(query_id > storage::last_transaction);
-    ~dump(found?);
-    accept_message();
     throw_unless(40, (query_id > storage::last_transaction) | (found?));
+    accept_message();
     storage::last_transaction = query_id;
     (slice owner, int found?) = storage::owners.udict_get?(256, public_key);
     throw_unless(34, found?);
@@ -159,6 +151,7 @@ global cell storage::pending_queries;
 
     if (op == op::submit_proposal) {
         (slice value, int found?) = storage::pending_queries.udict_get?(64, query_id);
+        
         cell messages = found? ? value~load_ref() : in_msg~load_ref();
         cell signatures = found? ? value~load_dict() : new_dict();
         signatures~udict_set_builder(
@@ -167,7 +160,6 @@ global cell storage::pending_queries;
         );
         storage::pending_queries~udict_set_builder(
             64, query_id, begin_cell()
-                .store_int(false, 1) ;; proceed?
                 .store_ref(messages)
                 .store_dict(signatures)
         );

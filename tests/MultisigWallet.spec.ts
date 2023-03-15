@@ -17,7 +17,8 @@ describe('MultisigWallet', () => {
     let publicKey: Buffer, secretKey: Buffer;
     let anotherPublicKey: Buffer, anotherSecretKey: Buffer;
 
-    let queryId = parseInt((Math.floor((Date.now() / 1000) + 60 * 60 * 24 * 3) * 2 ** 32).toString());
+    let queryId = BigInt((Math.floor((Date.now() / 1000) + 60 * 60 * 24 * 3))) * BigInt(2 ** 32);
+    // let queryId = 7211851840671980000;
 
     beforeAll(async () => {
         multisigWalletCode = await compile('MultisigWallet');
@@ -34,7 +35,6 @@ describe('MultisigWallet', () => {
         anotherSecretKey = Buffer.from(keyPair.secretKey);
     });
 
-    queryId -= 10;
     it('should deploy & put test coins', async () => {
         multisigWallet = blockchain.openContract(
             MultisigWallet.createFromConfig({
@@ -56,7 +56,7 @@ describe('MultisigWallet', () => {
         //     vmLogs: 'vm_logs',
         // });
         const deployResult = await multisigWallet.sendDeploy(
-            publicKey, secretKey, queryId
+            publicKey, secretKey, queryId - 11n
         );
         expect(deployResult.transactions).toHaveTransaction({
             to: multisigWallet.address,
@@ -64,7 +64,6 @@ describe('MultisigWallet', () => {
         });
     });
 
-    queryId += 1;
     it('try withdraw, 1 signature', async () => {
         const withdrawResult = await multisigWallet.sendExternal(
             publicKey, secretKey,
@@ -83,7 +82,7 @@ describe('MultisigWallet', () => {
                         )
                         .endCell()
                 )
-                .endCell(), queryId
+                .endCell(), queryId - 10n
         );
         expect(withdrawResult.transactions).toHaveTransaction({
             from: multisigWallet.address,
@@ -92,7 +91,6 @@ describe('MultisigWallet', () => {
         });
     });
 
-    queryId += 1;
     it('add owner', async () => {
         await multisigWallet.sendExternal(
             publicKey, secretKey,
@@ -107,12 +105,11 @@ describe('MultisigWallet', () => {
                         .storeUint(1, 16)
                         .endCell()
                 )
-                .endCell(), queryId
+                .endCell(), queryId - 9n
         );
         expect(true).toBe(true);
     });
 
-    queryId += 1;
     it('edit threshold', async () => {
         await multisigWallet.sendExternal(
             publicKey, secretKey,
@@ -125,18 +122,17 @@ describe('MultisigWallet', () => {
                         .storeCoins(2n)
                         .endCell()
                 )
-                .endCell(), queryId
+                .endCell(), queryId - 8n
         );
 
         let accountState = (await blockchain.getContract(multisigWallet.address)).accountState;
         if (accountState?.type !== 'active') throw new Error('Contract is not active');
         let accountData = accountState.state.data;
         if (!accountData) throw new Error('Contract has invalid data');
-        const storedThreshold = accountData.beginParse().skip(64).loadCoins();
+        const storedThreshold = accountData.beginParse().skip(128).loadCoins();
         expect(storedThreshold).toBe(2n);
     });
 
-    queryId += 1;
     it('try withdraw, 2 signatures [add proposal]', async () => {
         await multisigWallet.sendExternal(
             publicKey, secretKey,
@@ -155,7 +151,7 @@ describe('MultisigWallet', () => {
                         )
                         .endCell()
                 )
-                .endCell(), queryId
+                .endCell(), queryId - 7n
         );
 
         let account = (await blockchain.getContract(multisigWallet.address));
@@ -167,7 +163,7 @@ describe('MultisigWallet', () => {
             anotherPublicKey, anotherSecretKey,
             beginCell()
                 .storeUint(0xa83505c8, 32)
-                .endCell(), queryId
+                .endCell(), queryId - 7n
         );
 
         expect(withdrawResult.transactions).toHaveTransaction({
