@@ -4,7 +4,7 @@ import httpx
 import time
 import os
 
-TESTNET = True
+TESTNET = False
 TONCENTER_API_KEY = None
 TONCENTER_ENDPOINT = f"https://{'testnet.' if TESTNET else ''}toncenter.com/api/v2/"
 
