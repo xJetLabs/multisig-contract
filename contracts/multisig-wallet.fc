@@ -68,6 +68,26 @@ int calculate_score(cell signatures) {
     ;; do nothing
 }
 
+(int, int) _available?() { ;; returns (monopolized?, available?)
+    cell owners = storage::owners;
+    int _monopolized = false;
+    int max_score = 0;
+    do {
+        (owners, int index, slice owner, int found?) = owners.udict_delete_get_min(256);
+        if (found?) {
+            int flood = owner~load_uint(8);
+            int weight = owner~load_uint(16);
+            if (weight >= storage::threshold) {
+                _monopolized = true;
+            }
+            if (flood <= 10) {
+                max_score += weight;
+            }
+        }
+    } until (~ found?);
+    return (_monopolized, max_score >= storage::threshold);
+}
+
 () run_proposal(int query_id, cell _messages, cell signatures) impure {
     int score = calculate_score(signatures);
     if (score >= storage::threshold) {
@@ -107,9 +127,11 @@ int calculate_score(cell signatures) {
                 commit();
                 save_data();
             } else {
-                send_raw_message(messages~load_ref(), mode);
+                send_raw_message(messages~load_ref(), mode | 2);
             }
         }
+        (_, int isnt_locked?) = _available?();
+        throw_unless(577, isnt_locked?);
 
         ;; clear flood counters
         do {
@@ -167,6 +189,11 @@ int calculate_score(cell signatures) {
             .store_uint(flood, 8)
             .store_uint(weight, 16)
     );
+    (_, int isnt_locked?) = _available?();
+    if (isnt_locked?) {
+        save_data();
+        commit();
+    }
 
     int op = in_msg~load_uint(32);
     if (op == op::submit_proposal) {
@@ -184,6 +211,10 @@ int calculate_score(cell signatures) {
                 .store_dict(signatures)
         );
         run_proposal(query_id, messages, signatures);
+    }
+    else {
+        ;; without this part, users can be permanently banned through flood value
+        throw(0xffff);
     }
 
     ;; clear pending queries
@@ -259,17 +290,7 @@ int last_transaction() method_id {
     return storage::last_transaction;
 }
 
-int monopolized?() method_id {
+(int, int) available?() method_id {
     load_data();
-    do {
-        (storage::owners, int index, slice owner, int found?) = storage::owners.udict_delete_get_min(256);
-        if (found?) {
-            owner~skip_bits(8);
-            int weight = owner~load_uint(16);
-            if (weight >= storage::threshold) {
-                return index;
-            }
-        }
-    } until (~ found?);
-    return false;
+    return _available?();
 }

@@ -52,10 +52,7 @@ describe('MultisigWallet', () => {
             value: toNano('10'),
             bounce: false
         });
-        await blockchain.setVerbosityForAddress(multisigWallet.address, {
-            blockchainLogs: true,
-            vmLogs: 'vm_logs',
-        });
+        
         const deployResult = await multisigWallet.sendDeploy(
             publicKey, secretKey, floodQueryId - 11n
         );

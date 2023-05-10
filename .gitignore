@@ -1,0 +1,8 @@
+.build
+.vscode
+build
+dist
+node_modules
+scripts/__pycache__
+scripts/.identity
+scripts2

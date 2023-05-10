@@ -58,7 +58,7 @@ export class MultisigWallet implements Contract {
     }
 
     async sendDeploy(provider: ContractProvider, publicKey: Buffer, secretKey: Buffer, queryId: bigint) {
-        return await this.sendExternal(provider, publicKey, secretKey, beginCell().storeUint(0, 32).endCell(), queryId);
+        return await this.sendExternal(provider, publicKey, secretKey, beginCell().storeUint(0xa83505c8, 32).endCell(), queryId);
     }
 
     async sendExternal(provider: ContractProvider, publicKey: Buffer, secretKey: Buffer, message: Cell, queryId: bigint) {
